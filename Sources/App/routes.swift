@@ -62,9 +62,9 @@ func routes(_ app: Application) throws {
             }
             
             return Interest.query(on: req.db).all().flatMap { (interests) -> EventLoopFuture<Dictionary<String,Array<String>>> in
-                return req.eventLoop.makeSucceededFuture(["disciplines": Array(Set(disciplines)),
+                return req.eventLoop.makeSucceededFuture(["disciplines": Array(Set(disciplines)).sorted(),
                                                           "interests": interests.compactMap { $0.name },
-                                                          "school_years": Array(Set(school_years))])
+                                                          "school_years": Array(Set(school_years)).sorted()])
             }
         }
     }

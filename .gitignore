@@ -91,3 +91,4 @@ iOSInjectionProject/
 .DS_Store
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 Package.resolved
+.swiftpm/xcode/xcshareddata/xcschemes/application-server.xcscheme

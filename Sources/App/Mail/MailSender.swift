@@ -43,4 +43,3 @@ func sendAccountManagementEmail(app: Application, user: CMUser) -> EventLoopFutu
     )
     return app.mailgun().send(message)
 }
-
