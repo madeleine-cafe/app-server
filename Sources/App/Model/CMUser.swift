@@ -2,7 +2,16 @@ import Fluent
 import Vapor
 import Mailgun
 
-final class CMUser: Model {
+/// Represents a user of Madeleine Cafe
+final class CMUser: Model, Hashable {
+    static func == (lhs: CMUser, rhs: CMUser) -> Bool {
+        return lhs.id == rhs.id
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(self.id)
+    }
+    
     init() {}
     static let schema = "users"
     
@@ -17,6 +26,12 @@ final class CMUser: Model {
     
     @Siblings(through: UserInterests.self, from: \.$user, to: \.$interest)
     public var interests: [Interest]
+    
+    @Siblings(through: Matches.self, from: \.$user1, to:\.$user2)
+    public var previousMatches: [CMUser]
+    
+    @Siblings(through: Matches.self, from: \.$user2, to:\.$user1)
+    public var previousMatched: [CMUser]
     
     @Field(key: "email")
     var email: String
@@ -71,5 +86,31 @@ extension CMUser: Validatable {
     static func validations(_ validations: inout Validations) {
         validations.add("email", as: String.self, is: .email)
         validations.add("name", as: String.self, is: .alphanumeric)
+    }
+}
+
+extension CMUser {
+    func wasAlreadyMatchedWith(user: CMUser) -> Bool {
+        return Set(self.pastMatches()).contains(user)
+    }
+    
+    func pastMatches() -> [CMUser] {
+        var array = Array(self.previousMatched)
+        array.append(contentsOf: self.previousMatches)
+        return array
+    }
+    
+    func exclusionCounts() -> Int {
+        self.previousMatched.count + self.previousMatches.count
+    }
+    
+    func loadPreviousMatches(app: Application, eventLoopGroup: EventLoopGroup) -> EventLoopFuture<Void> {
+        return self.$previousMatches.load(on: app.db).flatMap { (result) in
+            return self.$previousMatched.load(on: app.db).flatMap {
+                var matches =  Array(self.previousMatches)
+                matches.append(contentsOf: self.previousMatched)
+                return eventLoopGroup.next().makeSucceededFuture(Void())
+            }
+        }
     }
 }

@@ -1,7 +1,16 @@
 import Fluent
 import Vapor
 
-final class Interest: Model {
+/// Represents an interest that a user can have.
+final class Interest: Model, Hashable {
+    static func == (lhs: Interest, rhs: Interest) -> Bool {
+        return lhs.id == rhs.id
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(self.id)
+    }
+    
     static func interestsFromList(names:[String], on db: Database) -> EventLoopFuture<[Interest?]> {
         return names.map { return interestFromName(db: db, name: $0) }.flatten(on: db.eventLoop)
     }

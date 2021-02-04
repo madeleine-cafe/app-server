@@ -1,19 +1,45 @@
 import Mailgun
 import Vapor
 
-let senderName = "Café Madeleine <no-reply@matching.madeleine.cafe>";
+let senderName = "Madeleine Café <no-reply@matching.madeleine.cafe>";
 
 func sendMatchingEmail(app: Application,
                        user1: CMUser,
-                       user2: CMUser) -> EventLoopFuture<ClientResponse> {
+                       user2: CMUser,
+                       user3: CMUser?,
+                       sharedInterests: [Interest]) -> EventLoopFuture<ClientResponse> {
+    let salutations:String
+    if user3 == nil {
+        salutations = "\(user1.name) et \(user2.name)"
+    } else {
+        salutations = "\(user1.name), \(user2.name) et \(user3!.name)"
+    }
+    
+    var interestString: String
+    if sharedInterests.count > 0 {
+        let delimiter = ", "
+        interestString = sharedInterests.reduce("Nos petites madeleines nous ont dit qu'en plus du café vous aimez: ", { (previousResult, interest) -> String in
+            return previousResult.appending(interest.name + delimiter)
+        })
+        interestString.removeLast(delimiter.count)
+        interestString.append(".")
+    } else {
+        interestString = ""
+    }
+    
+    
+    let templateData = ["salutations": salutations,
+                        "interests": interestString,
+                        "jitsi_link": JitsiMeetProvider.uniqueURLForCall()
+                        ]
+
     let message = MailgunTemplateMessage (
         from: senderName,
         to: [user1.email, user2.email],
         replyTo: "\(user1.email), \(user2.email)",
         subject: "☕️ Programmez votre Madeleine Café !",
         template: "matching-email",
-        templateData: ["personne1": user1.name,
-                       "personne2": user2.name]
+        templateData: templateData
     )
     return app.mailgun().send(message)
 }
@@ -25,6 +51,19 @@ func sendSignupEmail(app: Application, user: CMUser) -> EventLoopFuture<ClientRe
         to: user.email,
         subject: "☕️ Confirmez votre inscription !",
         template: "signup",
+        templateData: ["username": user.name,
+                       "signup_url": user.getActivationURL()]
+    )
+    return app.mailgun().send(message)
+}
+
+func sendSignupReminderEmail(app: Application, user: CMUser) -> EventLoopFuture<ClientResponse>
+{
+    let message = MailgunTemplateMessage (
+        from: senderName,
+        to: user.email,
+        subject: "☕️ [Rappel] Confirmez votre inscription !",
+        template: "signup-reminder",
         templateData: ["username": user.name,
                        "signup_url": user.getActivationURL()]
     )
