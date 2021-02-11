@@ -3,21 +3,34 @@ import Fluent
 
 enum MatchingErrors: Error {
     case incorrectNumberOfUsersMatched
+    case failedToSave
 }
 
-func saveMatching(app: Application, eventLoopGroup: EventLoopGroup, matching: [Match]) throws  {
+func saveMatchingAndSendEmails(app: Application, matching: [Match]) -> EventLoopFuture<[ClientResponse]>
+{
+    guard let matchingSaved = try? saveMatching(app: app, matching: matching) else {
+        print("Failed sending matches")
+        return app.eventLoopGroup.next().makeFailedFuture(MatchingErrors.failedToSave)
+    }
+    
+    return matchingSaved.flatMap { (matches) -> EventLoopFuture<[ClientResponse]> in
+        matches.compactMap { (match) -> EventLoopFuture<ClientResponse> in
+            let user1 = match.users[0]
+            let user2 = match.users[1]
+            return sendMatchingEmail(app: app, user1: user1, user2: user2, user3: nil, sharedInterests: match.sharedInterests)
+        }.flatten(on: app.eventLoopGroup.next())
+    }
+}
+
+func saveMatching(app: Application, matching: [Match]) throws -> EventLoopFuture<[Match]>  {
     let matches = try matching.flatMap { (match)  in
         return try match.toMatches()
     }
     
     return matches.compactMap { (match) -> EventLoopFuture<Void> in
         return match.save(on: app.db)
-    }.flatten(on: eventLoopGroup.next()).whenSuccess {
-        _ = matching.compactMap { (m)  in
-            let user1 = m.users[0]
-            let user2 = m.users[1]
-            sendMatchingEmail(app: app, user1: user1, user2: user2, user3: nil, sharedInterests: m.sharedInterests)
-        }
+    }.flatten(on: app.eventLoopGroup.next()).flatMap { (Void) -> EventLoopFuture<[Match]> in
+        return app.eventLoopGroup.next().makeSucceededFuture(matching)
     }
 }
 
