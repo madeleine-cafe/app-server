@@ -9,9 +9,16 @@ func sendMatchingEmail(app: Application,
                        user3: CMUser?,
                        sharedInterests: [Interest]) -> EventLoopFuture<ClientResponse> {
     let salutations:String
+    let emails: [String]
+    let replyTos: String
+    
     if user3 == nil {
+        replyTos = "\(user1.email), \(user2.email)"
+        emails = [user1.email, user2.email]
         salutations = "\(user1.name) et \(user2.name)"
     } else {
+        emails = [user1.email, user2.email, user3!.email]
+        replyTos = "\(user1.email), \(user2.email), \(user3!.email)"
         salutations = "\(user1.name), \(user2.name) et \(user3!.name)"
     }
     
@@ -35,12 +42,13 @@ func sendMatchingEmail(app: Application,
 
     let message = MailgunTemplateMessage (
         from: senderName,
-        to: [user1.email, user2.email],
-        replyTo: "\(user1.email), \(user2.email)",
+        to: emails,
+        replyTo: replyTos,
         subject: "☕️ Programmez votre Madeleine Café !",
         template: "matching-email",
         templateData: templateData
     )
+    
     return app.mailgun().send(message)
 }
 

@@ -17,7 +17,9 @@ func saveMatchingAndSendEmails(app: Application, matching: [Match]) -> EventLoop
         matches.compactMap { (match) -> EventLoopFuture<ClientResponse> in
             let user1 = match.users[0]
             let user2 = match.users[1]
-            return sendMatchingEmail(app: app, user1: user1, user2: user2, user3: nil, sharedInterests: match.sharedInterests)
+            let user3 = match.users.count == 3 ? match.users[2] : nil;
+            
+            return sendMatchingEmail(app: app, user1: user1, user2: user2, user3: user3, sharedInterests: match.sharedInterests)
         }.flatten(on: app.eventLoopGroup.next())
     }
 }
