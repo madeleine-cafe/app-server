@@ -40,14 +40,6 @@ extension SignupMessage: Validatable {
 }
 
 func routes(_ app: Application) throws {
-    app.get("allow_listed_email_suffixes") { req -> EventLoopFuture<[String]> in
-        let classGroups = ClassGroup.query(on: req.db).all()
-        
-        return classGroups.flatMap {
-            return req.eventLoop.makeSucceededFuture(Array(Set($0.compactMap { return $0.email_suffix })))
-        }
-    }
-    
     app.get("signup_options", ":domain") { req -> EventLoopFuture<Dictionary<String,Array<String>>> in
         let classGroups = ClassGroup.query(on: req.db)
             .filter(\.$email_suffix ~= req.parameters.get("domain")!).all()
@@ -61,7 +53,12 @@ func routes(_ app: Application) throws {
                 school_years.append($0.year)
             }
             
+            if(disciplines.count == 0 || school_years.count == 0) {
+                return req.eventLoop.makeFailedFuture(SadMadeleines.noGroupFound)
+            }
+            
             return Interest.query(on: req.db).all().flatMap { (interests) -> EventLoopFuture<Dictionary<String,Array<String>>> in
+                
                 return req.eventLoop.makeSucceededFuture(["disciplines": Array(Set(disciplines)).sorted(),
                                                           "interests": interests.compactMap { $0.name },
                                                           "school_years": Array(Set(school_years)).sorted()])
@@ -217,4 +214,5 @@ func routes(_ app: Application) throws {
 enum SadMadeleines: Error {
     case unauthorized
     case noToken
+    case noGroupFound
 }
