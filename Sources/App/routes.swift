@@ -50,7 +50,7 @@ func routes(_ app: Application) throws {
     
     app.get("signup_options", ":domain") { req -> EventLoopFuture<Dictionary<String,Array<String>>> in
         let classGroups = ClassGroup.query(on: req.db)
-            .filter(\.$email_suffix == req.parameters.get("domain")!).all()
+            .filter(\.$email_suffix ~= req.parameters.get("domain")!).all()
         
         return classGroups.flatMap { (groups) -> EventLoopFuture<Dictionary<String,Array<String>>> in
             var disciplines  = Array<String>()
@@ -75,7 +75,7 @@ func routes(_ app: Application) throws {
             return req.eventLoop.makeSucceededFuture(nil)
         }
         return ClassGroup.query(on: req.db)
-            .filter(\.$email_suffix == domain)
+            .filter(\.$email_suffix ~= domain)
             .filter(\.$discipline == signupMessage.discipline)
             .filter(\.$year == signupMessage.year).first()
     }
