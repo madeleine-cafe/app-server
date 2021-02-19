@@ -172,13 +172,9 @@ func routes(_ app: Application) throws {
                 return req.eventLoop.makeFailedFuture(SadMadeleines.noToken)
             }
             
-            return user.$interests.get(on: app.db).flatMap { (interests) -> EventLoopFuture<Void> in
-                user.$interests.detach(interests, on: app.db)
-            }.flatMap { user.delete(on: app.db) }.flatMap{ req.eventLoop.makeSucceededFuture(HTTPStatus.ok) }
+            return user.deleteUserAndAssociatedData(req)
         }
     }
-    
-    
     
     app.get("account","activate", ":token") { req -> EventLoopFuture<HTTPStatus> in
         guard let tokenData = req.parameters.get("token")!.decodeURLData() else {
@@ -194,21 +190,6 @@ func routes(_ app: Application) throws {
             return user.save(on: req.db).flatMap{ return req.eventLoop.makeSucceededFuture(HTTPStatus.ok) }
         }
     }
-    
-    app.get("account", "delete", "token") { req -> EventLoopFuture<HTTPStatus> in
-        var tokenString = req.parameters.get("token")!
-        
-        guard let tokenData = tokenString.decodeURLData() else {
-            return req.eventLoop.makeFailedFuture(SadMadeleines.unauthorized)
-        }
-        
-        return CMUser.query(on: req.db).filter(\.$email_validation_token == tokenData).first().flatMap { (user) -> EventLoopFuture<HTTPStatus> in
-            return user!.delete(on: req.db).flatMap { () -> EventLoopFuture<HTTPStatus> in
-                return req.eventLoop.makeSucceededFuture(HTTPStatus.ok)
-            }
-        }
-    }
-    
 }
 
 enum SadMadeleines: Error {

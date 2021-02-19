@@ -76,4 +76,3 @@ class Matches: Model {
         self.$user2.id = try user2.requireID()
     }
 }
-

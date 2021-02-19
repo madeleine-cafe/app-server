@@ -90,6 +90,21 @@ extension CMUser: Validatable {
 }
 
 extension CMUser {
+    func deleteUserAndAssociatedData(_ req: Request) -> EventLoopFuture<HTTPStatus> {
+        self.$interests.get(on: req.db).flatMap { (interests) -> EventLoopFuture<Void> in
+            if (interests.count > 0) { return self.$interests.detach(interests, on: req.db) }
+            return req.eventLoop.next().makeSucceededFuture(Void())
+        }.flatMap {
+            return self.loadPreviousMatches(app: req.application, eventLoopGroup: req.eventLoop.next())
+        }.flatMap {
+            if (self.previousMatches.count > 0) { return self.$previousMatches.detach(self.previousMatches, on: req.db)}
+            return req.eventLoop.next().makeSucceededFuture(Void())
+        }.flatMap {
+            if (self.previousMatched.count > 0) { return self.$previousMatched.detach(self.previousMatched, on: req.db) }
+            return req.eventLoop.next().makeSucceededFuture(Void())
+        }.flatMap { self.delete(on: req.db) }.flatMap{ req.eventLoop.makeSucceededFuture(HTTPStatus.ok)}
+    }
+    
     func wasAlreadyMatchedWith(user: CMUser) -> Bool {
         return Set(self.pastMatches()).contains(user)
     }
@@ -107,8 +122,6 @@ extension CMUser {
     func loadPreviousMatches(app: Application, eventLoopGroup: EventLoopGroup) -> EventLoopFuture<Void> {
         return self.$previousMatches.load(on: app.db).flatMap { (result) in
             return self.$previousMatched.load(on: app.db).flatMap {
-                var matches =  Array(self.previousMatches)
-                matches.append(contentsOf: self.previousMatched)
                 return eventLoopGroup.next().makeSucceededFuture(Void())
             }
         }
